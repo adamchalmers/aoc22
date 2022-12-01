@@ -1,0 +1,4 @@
+(executables
+ (names q1 q2)
+ (libraries ounit2)
+)
