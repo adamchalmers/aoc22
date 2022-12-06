@@ -1,12 +1,6 @@
-use std::str;
-
 use nom::{
-    bytes::complete::take_while,
-    character::{
-        complete::{char, line_ending},
-        is_digit,
-    },
-    combinator::{map, map_res},
+    character::complete::{char, line_ending, u32 as parse_u32},
+    combinator::map,
     multi::separated_list1,
     sequence::separated_pair,
     IResult,
@@ -35,7 +29,7 @@ fn solve(input: &[u8]) -> (usize, usize) {
 }
 
 /// One elf's selection assignment -- an inclusive range of section IDs.
-type Range = (usize, usize);
+type Range = (u32, u32);
 
 /// Do the two ranges overlap each other at all?
 enum Overlap {
@@ -62,14 +56,8 @@ impl From<(Range, Range)> for Overlap {
 
 /// For each line in the input, parse the two ranges, and calculate their overlap.
 fn parse_input(input: &[u8]) -> Vec<Overlap> {
-    fn parse_num(i: &[u8]) -> IResult<&[u8], usize> {
-        map_res(take_while(is_digit), |digits: &[u8]| {
-            str::from_utf8(digits).unwrap().parse()
-        })(i)
-    }
-
     fn parse_range(i: &[u8]) -> IResult<&[u8], Range> {
-        separated_pair(parse_num, char('-'), parse_num)(i)
+        separated_pair(parse_u32, char('-'), parse_u32)(i)
     }
 
     fn parse_line(i: &[u8]) -> IResult<&[u8], Overlap> {

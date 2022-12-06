@@ -1,12 +1,7 @@
-use std::str::from_utf8;
-
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_until, take_while1},
-    character::{
-        complete::{anychar, char as onechar, line_ending},
-        is_digit,
-    },
+    bytes::complete::{tag, take_until},
+    character::complete::{anychar, char as onechar, line_ending, u32 as parse_u32},
     combinator::{map, value},
     multi::separated_list1,
     sequence::{delimited, terminated, tuple},
@@ -73,25 +68,20 @@ fn initial_stacked_rows(i: Input) -> Result<Row> {
 
 /// Parse all crane rearrangements.
 fn rearrangements(i: Input) -> Result<Vec<Rearrangement>> {
-    fn number(i: Input) -> Result<usize> {
-        map(take_while1(is_digit), |res| {
-            from_utf8(res).unwrap().parse().unwrap()
-        })(i)
-    }
     let parse_rearrangement = map(
         tuple((
             tag("move "),
-            number,
+            parse_u32,
             tag(" from "),
-            number,
+            parse_u32,
             tag(" to "),
-            number,
+            parse_u32,
         )),
         |(_, qty, _, src, _, dst)| Rearrangement {
-            qty,
+            qty: qty as _,
             // Convert the input format's 1-based indices to 0-based indices
-            src: src - 1,
-            dst: dst - 1,
+            src: (src - 1) as _,
+            dst: (dst - 1) as _,
         },
     );
     separated_list1(line_ending, parse_rearrangement)(i)
