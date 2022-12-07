@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while},
+    bytes::complete::{tag, take_until1, take_while},
     character::{
         complete::{alpha1, char as one_char, line_ending, u32 as parse_num},
         is_alphabetic,
@@ -16,9 +16,13 @@ type Result<'a, T> = nom::IResult<Input<'a>, T>;
 #[derive(Clone, Debug)]
 pub enum Line {
     Cd(String),
-    Ls,
     LsFile(u32, String),
-    LsDir(String),
+    Other,
+}
+
+/// Parse the entire input file.
+pub fn parse_lines(i: Input) -> Result<Vec<Line>> {
+    separated_list1(line_ending, alt((parse_cd, parse_ls_file, parse_other)))(i)
 }
 
 fn parse_cd(i: Input) -> Result<Line> {
@@ -30,8 +34,8 @@ fn parse_cd(i: Input) -> Result<Line> {
     map(preceded(tag("$ cd "), parse_dir_name), Line::Cd)(i)
 }
 
-fn parse_ls(i: Input) -> Result<Line> {
-    value(Line::Ls, tag("$ ls"))(i)
+fn parse_other(i: Input) -> Result<Line> {
+    value(Line::Other, take_until1("\n"))(i)
 }
 
 fn parse_ls_file(i: Input) -> Result<Line> {
@@ -45,20 +49,6 @@ fn parse_ls_file(i: Input) -> Result<Line> {
     map(
         tuple((parse_num, one_char(' '), parse_file_name)),
         |(size, _, name)| Line::LsFile(size, name),
-    )(i)
-}
-
-fn parse_ls_dir(i: Input) -> Result<Line> {
-    map_res(preceded(tag("dir "), alpha1), |bytes: &[u8]| {
-        let s = String::from_utf8(bytes.to_vec())?;
-        Ok::<_, std::string::FromUtf8Error>(Line::LsDir(s))
-    })(i)
-}
-
-pub fn parse_lines(i: Input) -> Result<Vec<Line>> {
-    separated_list1(
-        line_ending,
-        alt((parse_cd, parse_ls, parse_ls_file, parse_ls_dir)),
     )(i)
 }
 

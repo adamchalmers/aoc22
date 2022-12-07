@@ -12,37 +12,42 @@ fn main() {
     println!("q2: {}", q2(&dir_sizes));
 }
 
+/// Given the parsed input, find the size of every directory.
+/// Order of the returned vec is arbitrary.
 fn size_of_dirs(lines: Vec<Line>) -> Vec<usize> {
     let mut filesizes: HashMap<Vec<String>, usize> = Default::default();
-    let mut cwd = vec![];
+    let mut cwd = Vec::new(); // cwd = current working directory
     for line in lines {
         match line {
-            Line::Cd(s) => match s.as_ref() {
+            Line::Cd(dir) => match dir.as_ref() {
                 ".." => {
                     cwd.pop();
                 }
                 "/" => {
-                    cwd = vec![];
+                    cwd = Vec::new();
                 }
-                other => cwd.push(other.to_owned()),
+                normal_dir => cwd.push(normal_dir.to_owned()),
             },
             Line::LsFile(size, name) => {
                 let mut absolute_path = cwd.clone();
                 absolute_path.push(name);
                 filesizes.insert(absolute_path, size as _);
             }
-            Line::Ls => {}
-            Line::LsDir(_) => {}
+            Line::Other => {}
         }
     }
 
+    // Track the size of each directory.
     let mut dir_sizes: HashMap<Vec<String>, usize> = Default::default();
+
+    // Loop over every file. Add its size to the size of each parent directory.
     for (absolute_filepath, size) in filesizes {
         for i in 0..absolute_filepath.len() {
             let dir = absolute_filepath[0..i].to_vec();
             *dir_sizes.entry(dir).or_insert(0) += size;
         }
     }
+
     dir_sizes.values().copied().collect()
 }
 
@@ -69,4 +74,18 @@ fn q2(dir_sizes: &[usize]) -> usize {
         .filter(|dir_size| dir_size >= &&bytes_to_delete)
         .min()
         .unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_real_answer() {
+        let input = include_bytes!("../input");
+        let (_, lines) = parse::parse_lines(input).expect("could not parse input file");
+        let dir_sizes = size_of_dirs(lines);
+        assert_eq!(1390824, q1(&dir_sizes));
+        assert_eq!(7490863, q2(&dir_sizes));
+    }
 }
