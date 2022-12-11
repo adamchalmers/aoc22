@@ -5,6 +5,7 @@ type Count = u8;
 impl Grid<u8> {
     pub fn scenic_score(&self) -> Grid<Count> {
         let u = self.trees_visible_above();
+        u.print();
         let d = self.trees_visible_below();
         let l = self.trees_visible_left();
         let r = self.trees_visible_right();
@@ -53,10 +54,23 @@ impl Grid<u8> {
         }
         for y in 1..n {
             for x in 0..n {
+                let verbose = x == 4 && y == 3;
                 let other = self.get(x, y - 1);
+                if verbose {
+                    println!("Self : {}", self.get(x, y));
+                    println!("Other: {}", other);
+                }
                 // If `other` is shorter, then `self` can see as many trees as `other` can,
                 // plus one more (`other` itself.)
                 let this = if self.get(x, y) > other {
+                    if verbose {
+                        println!("Self is taller");
+                        println!("Other can see {} trees above", trees_visible.get(x, y - 1));
+                        println!(
+                            "So self can see {} trees above",
+                            trees_visible.get(x, y - 1) + 1
+                        );
+                    }
                     trees_visible.get(x, y - 1) + 1
                 } else {
                     1
@@ -115,6 +129,8 @@ impl Grid<u8> {
 
 #[cfg(test)]
 mod tests {
+    use crate::transpose;
+
     use super::*;
 
     #[test]
@@ -151,6 +167,45 @@ mod tests {
         // From the example
         assert_eq!(vis.get(2, 1), 1);
         assert_eq!(vis.get(2, 3), 2);
+
+        // My own
+        assert_eq!(vis.get(4, 3), 3);
+    }
+
+    #[test]
+    fn test_left() {
+        let input = include_str!("../example");
+        let trees: Grid<u8> = Grid::parse(input);
+        let vis = trees.trees_visible_left();
+        // All of the trees around the edge of the grid are visible - since they are already on
+        // the edge, there are no trees to block the view.
+        assert_eq!(vis.get(0, 0), 0);
+        assert_eq!(vis.get(0, 1), 0);
+        assert_eq!(vis.get(0, 2), 0);
+        assert_eq!(vis.get(0, 3), 0);
+        assert_eq!(vis.get(0, 4), 0);
+
+        // From the example
+        assert_eq!(vis.get(2, 1), 1);
+        assert_eq!(vis.get(2, 3), 2);
+    }
+
+    #[test]
+    fn test_right() {
+        let input = include_str!("../example");
+        let trees: Grid<u8> = Grid::parse(input);
+        let vis = trees.trees_visible_right();
+        // All of the trees around the edge of the grid are visible - since they are already on
+        // the edge, there are no trees to block the view.
+        assert_eq!(vis.get(4, 0), 0);
+        assert_eq!(vis.get(4, 1), 0);
+        assert_eq!(vis.get(4, 2), 0);
+        assert_eq!(vis.get(4, 3), 0);
+        assert_eq!(vis.get(4, 4), 0);
+
+        // From the example
+        assert_eq!(vis.get(2, 1), 2);
+        assert_eq!(vis.get(2, 3), 2);
     }
 
     #[test]
@@ -158,7 +213,17 @@ mod tests {
         let input = include_str!("../example");
         let trees: Grid<u8> = Grid::parse(input);
         let scenic_scores = trees.scenic_score();
+        scenic_scores.print();
+        let expected = vec![
+            vec![0; 5],
+            vec![0, 1, 4, 1, 0],
+            vec![0, 4, 1, 2, 0],
+            vec![0, 1, 8, 3, 0],
+            vec![0; 5],
+        ];
+        assert_eq!(scenic_scores.0, transpose(expected));
         assert_eq!(scenic_scores.get(2, 1), 4);
         assert_eq!(scenic_scores.get(2, 3), 8);
+        assert_eq!(scenic_scores.max(), 8);
     }
 }

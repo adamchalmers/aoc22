@@ -20,20 +20,14 @@ impl<T> Grid<T> {
 
 impl<T> Grid<T>
 where
-    T: Ord + Copy,
+    T: Ord + Copy + Debug + Default,
 {
-    pub fn max(&self) -> T {
-        let mut greatest_so_far = self.get(0, 0);
-        let n = self.side_len();
-        for x in 0..n {
-            for y in 0..n {
-                let this = self.get(x, y);
-                if this > greatest_so_far {
-                    greatest_so_far = this;
-                }
-            }
-        }
-        greatest_so_far
+    pub fn max(self) -> T {
+        let iter_2d = self.0.into_iter().flat_map(|r| r.into_iter());
+        let mut all: Vec<_> = iter_2d.collect();
+        all.sort();
+        println!("{all:?}");
+        all.pop().unwrap()
     }
 }
 
