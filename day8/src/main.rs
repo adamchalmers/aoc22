@@ -6,7 +6,9 @@ fn main() {
     let input = include_str!("../input");
     let trees: Grid<u8> = Grid::parse(input);
     println!("Q1: {}", trees.num_visible());
-    println!("Q2: {}", trees.scenic_score().max());
+    let ans2 = trees.max_scenic_score();
+    println!("Q2: {}", ans2);
+    assert_ne!(ans2, 659340)
 }
 
 /// (0,0) is the top-left.
@@ -15,19 +17,6 @@ struct Grid<T>(Vec<Vec<T>>);
 impl<T> Grid<T> {
     pub fn side_len(&self) -> usize {
         self.0.len()
-    }
-}
-
-impl<T> Grid<T>
-where
-    T: Ord + Copy + Debug + Default,
-{
-    pub fn max(self) -> T {
-        let iter_2d = self.0.into_iter().flat_map(|r| r.into_iter());
-        let mut all: Vec<_> = iter_2d.collect();
-        all.sort();
-        println!("{all:?}");
-        all.pop().unwrap()
     }
 }
 
@@ -84,8 +73,8 @@ fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
 impl<T: Debug + Clone> Grid<T> {
     fn print(&self) {
         let tr = transpose(self.0.clone());
-        for y in 0..self.side_len() {
-            println!("{:?}", tr[y]);
+        for row in tr.iter().take(self.side_len()) {
+            println!("{:?}", row);
         }
     }
 }
