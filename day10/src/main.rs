@@ -6,25 +6,19 @@ fn main() {
     println!("q1: {}", q1(instructions));
 }
 
-fn q1_simulation(instructions: Vec<Instruction>) -> (Cpu, Vec<i64>) {
-    let mut cpu = Cpu::default();
-    let outputs = cpu.simulate(instructions);
-    (cpu, outputs)
+fn q1_simulation(instructions: Vec<Instruction>) -> impl Iterator<Item = RegisterVal> {
+    Execution::new(Cpu::default(), instructions)
 }
 
 fn q1(instructions: Vec<Instruction>) -> RegisterVal {
-    let values_over_time = q1_simulation(instructions).1;
+    let values_over_time = q1_simulation(instructions);
     values_over_time
-        .iter()
         .enumerate()
         .map(|(t, x)| (t + 1, x))
-        .filter(|(t, _x)| t >= &20 && ((t - 20) % 40 == 0))
-        .map(|(t, x)| {
-            let signal_strength = (t as i64) * x;
-            // eprintln!("t={t}, x={x}, signal={signal_strength}");
-            (t, signal_strength)
-        })
-        .map(|(_t, x)| x)
+        // Consider the signal strength (the cycle number multiplied by the value of the X register)
+        // during the 20th cycle and every 40 cycles after that.
+        .filter(|(cycle_num, _x)| cycle_num >= &20 && ((cycle_num - 20) % 40 == 0))
+        .map(|(cycle_num, x)| (cycle_num as RegisterVal) * x)
         .sum()
 }
 
@@ -62,46 +56,67 @@ impl Default for Cpu {
 }
 
 impl Cpu {
-    /// Outputs a vec showing the value of register x at each time.
-    fn simulate(&mut self, mut instructions: Vec<Instruction>) -> Vec<RegisterVal> {
-        instructions.reverse();
-        let mut register_values = Vec::new();
-        loop {
-            register_values.push(self.x);
-
-            match self.in_progress.take() {
-                // Instruction is ready
-                Some((instruction, 1)) => self.apply(instruction),
-
-                // Instruction needs more time
-                Some((instruction, ttl)) => self.in_progress = Some((instruction, ttl - 1)),
-
-                // Get a new instruction
-                None => match instructions.pop() {
-                    Some(ins) => {
-                        let num_cycles = ins.cycles();
-                        if num_cycles > 1 {
-                            // The instruction requires more cycles to complete.
-                            self.in_progress = Some((ins, num_cycles - 1))
-                        } else {
-                            // The instruction can be executed now.
-                            self.apply(ins)
-                        }
-                    }
-                    // No more instructions left, program complete, so stop simulating.
-                    None => break,
-                },
-            }
-        }
-        register_values
-    }
-
     fn apply(&mut self, instruction: Instruction) {
         self.instructions_executed += 1;
         match instruction {
             Instruction::Addx(n) => self.x += n,
             Instruction::Noop => {}
         }
+    }
+}
+
+struct Execution {
+    cpu: Cpu,
+    instructions: Vec<Instruction>,
+    done: bool,
+}
+
+impl Execution {
+    fn new(cpu: Cpu, mut instructions: Vec<Instruction>) -> Self {
+        instructions.reverse();
+        Self {
+            cpu,
+            instructions,
+            done: false,
+        }
+    }
+}
+
+impl Iterator for Execution {
+    type Item = RegisterVal;
+
+    /// Outputs a vec showing the value of register x at each time.
+    fn next(&mut self) -> Option<RegisterVal> {
+        let value_during_this_cycle = self.cpu.x;
+        if self.done {
+            return None;
+        }
+        match self.cpu.in_progress.take() {
+            // Instruction is ready
+            Some((instruction, 1)) => self.cpu.apply(instruction),
+
+            // Instruction needs more time
+            Some((instruction, ttl)) => self.cpu.in_progress = Some((instruction, ttl - 1)),
+
+            // Get a new instruction
+            None => match self.instructions.pop() {
+                Some(ins) => {
+                    let num_cycles = ins.cycles();
+                    if num_cycles > 1 {
+                        // The instruction requires more cycles to complete.
+                        self.cpu.in_progress = Some((ins, num_cycles - 1))
+                    } else {
+                        // The instruction can be executed now.
+                        self.cpu.apply(ins)
+                    }
+                }
+                // No more instructions left, program complete, so stop simulating.
+                None => {
+                    self.done = true;
+                }
+            },
+        }
+        Some(value_during_this_cycle)
     }
 }
 
@@ -138,6 +153,9 @@ mod tests {
         // During the fifth cycle, X is still 4.
         // After the fifth cycle, the addx -5 instruction finishes execution, setting X to -1.
 
-        assert_eq!(vec![1, 1, 1, 4, 4, -1], q1_simulation(instructions).1);
+        assert_eq!(
+            vec![1, 1, 1, 4, 4, -1],
+            q1_simulation(instructions).collect::<Vec<_>>()
+        );
     }
 }
