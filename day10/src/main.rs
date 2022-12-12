@@ -3,11 +3,29 @@ mod parse;
 fn main() {
     let (_remaining_input, instructions) =
         Instruction::parse_input(include_bytes!("../input")).expect("should parse everything");
-    println!("q1: {}", q1(instructions));
+    println!("q1: {}", q1(instructions.clone()));
+    q2(q1_simulation(instructions));
 }
 
 fn q1_simulation(instructions: Vec<Instruction>) -> impl Iterator<Item = RegisterVal> {
     Execution::new(Cpu::default(), instructions)
+}
+
+fn q2(mut sprite_positions: impl Iterator<Item = RegisterVal>) {
+    const WIDTH: usize = 40;
+    const HEIGHT: usize = 6;
+    for _y in 0..HEIGHT {
+        for x in 0..WIDTH {
+            let register_val = sprite_positions.next().unwrap();
+            let pixel = if register_val.abs_diff(x as _) <= 1 {
+                "#"
+            } else {
+                "."
+            };
+            print!("{pixel}");
+        }
+        println!()
+    }
 }
 
 fn q1(instructions: Vec<Instruction>) -> RegisterVal {
@@ -130,6 +148,15 @@ mod tests {
             Instruction::parse_input(include_bytes!("../example"))
                 .expect("should parse everything");
         assert_eq!(13140, q1(instructions));
+    }
+
+    #[test]
+    fn test_q2() {
+        let (_remaining_input, instructions) =
+            Instruction::parse_input(include_bytes!("../example"))
+                .expect("should parse everything");
+        let it = q1_simulation(instructions);
+        q2(it);
     }
 
     #[test]
